@@ -65,8 +65,9 @@ class UserController {
 
             const valid = isValidPassword(user, password)
             if (!valid) return done(null, false)
-  
-            return done(null, user)
+              const last_connection = new Date().toString()
+            await userService.updateUser(user, { last_connection: last_connection })
+            return done(null, user, last_connection)
           } catch (error) {
             logger.error("Usuario no encontrado", error)
             return done(error)
@@ -215,10 +216,7 @@ class UserController {
     
         const passwordMatch = isValidPassword(user, password)
         if (passwordMatch) {
-          return res.status(400).json({
-            status: "error",
-            message: "La nueva contraseña no puede ser igual a la antigua",
-          });
+          return res.status(400).json({ status: "error", message: "La nueva contraseña no puede ser igual a la antigua" })
         }
     
         const newPass = createHash(password)
@@ -235,6 +233,21 @@ class UserController {
         }
         const currentUser = new UserDTO(req.user)
         res.status(200).json({ status: "success", payload: currentUser })
+      }
+
+      async logoutUser(req, res) {
+        const user = req.user
+        req.session.destroy(async (err) => {
+          if (!err) {
+            const last_connection = new Date().toString()
+            await userService.updateUser(user, { last_connection: last_connection })
+    
+            await userService.findUserById(user._id)
+            res.status(200).json({ status: "success", message: "Closed session", last_connection })
+          } else {
+            res.status(500).json({ error: err })
+          }
+        })
       }
 
 }
